@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BCOTI</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0 auto; padding: 12px; max-width: 620px; background: #151918; color: #dce4dc; font-size: 16px; }
+    h1, h2 { font-size: 1.3rem; margin: 8px 0; }
+    p { line-height: 1.4; }
+    .main { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .main > div { padding: 12px; border: 1px solid #46594b; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .main > div > div { min-width: 0; }
+    label { display: inline-block; }
+    select, button { font: inherit; color: inherit; background: #29372d; border: 1px solid #6d8374; border-radius: 6px; min-height: 48px; padding: 8px; }
+    select { max-width: 190px; }
+    button { touch-action: manipulation; cursor: pointer; }
+    button:disabled, input:disabled, select:disabled { opacity: .45; cursor: default; }
+    input[type=range] { width: 100% !important; min-width: 100px; min-height: 40px; accent-color: #8dba98; }
+    input[type=checkbox] { width: 28px; height: 28px; accent-color: #8dba98; }
+    .axis { display: grid; grid-template-columns: 65px 1fr 65px; align-items: center; gap: 10px; width: 100%; }
+    .axis button { font-size: 1.3rem; }
+    .axis span { text-align: center; }
+    #zoom_div { flex-direction: column; align-items: stretch; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    #save_status { padding: 10px; border-left: 4px solid #8dba98; background: #202922; }
+    #save_status.error, #limit_note { color: #f3c586; }
+    .hint { font-size: .9rem; color: #b5c3b8; }
+    output { font-variant-numeric: tabular-nums; font-weight: 600; }
+    summary { cursor: pointer; padding: 12px 0; min-height: 44px; }
+    #control_help { padding: 10px; background: #202922; min-height: 60px; }
+    #health { display: flex; flex-wrap: wrap; gap: 8px; font-size: .9rem; }
+    #health span { border: 1px solid #46594b; padding: 6px; border-radius: 6px; }
+    dt { font-weight: 600; margin-top: 12px; }
+    dd { margin: 4px 0 12px; line-height: 1.4; }
+    input[type=file] { max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>BCOTI alignment</h1>
+  <p id="save_status" role="status" aria-live="polite">Loading saved settings...</p>
+  <div id="health" aria-label="Device status"></div>
+  <p id="control_help" class="hint" aria-live="polite">Tap or focus a control for help. Full explanations are also in Control help below.</p>
+  <section class="main" aria-label="Alignment">
+    <div>
+      <label for="flip_mode">Alignment mode</label>
+      <select id="flip_mode" onchange="changeMode()">
+        <option value="0">Digital alignment</option>
+        <option value="1">Camera X flip</option>
+        <option value="2">Camera Y flip</option>
+        <option value="3">Camera XY flip</option>
+      </select>
+    </div>
+    <p id="mode_note" class="hint"></p>
+    <div id="zoom_div">
+      <div class="axis">
+        <button id="x_minus" aria-label="Decrease X by one" onclick="nudge('x', -1)">X −</button>
+        <span>X <output id="x_value">—</output></span>
+        <button id="x_plus" aria-label="Increase X by one" onclick="nudge('x', 1)">X +</button>
+      </div>
+      <input aria-label="X alignment" type="range" id="zoom_x" step="1" onchange="setAxis('x', this.value)">
+      <div class="axis">
+        <button id="y_minus" aria-label="Decrease Y by one" onclick="nudge('y', -1)">Y −</button>
+        <span>Y <output id="y_value">—</output></span>
+        <button id="y_plus" aria-label="Increase Y by one" onclick="nudge('y', 1)">Y +</button>
+      </div>
+      <input aria-label="Y alignment" type="range" id="zoom_y" step="1" onchange="setAxis('y', this.value)">
+      <button id="center" onclick="sendAlignment(128, 96)">Restore center (128, 96)</button>
+      <p id="limit_note" role="status"></p>
+    </div>
+    <p class="hint">At your right-eye 9 o'clock mounting position, X/Y may look diagonal or reversed.
+      Tap X + once while watching a warm target, then X − to undo; repeat for Y.
+      Keep the direction that improves the overlay. Each change applies and saves automatically.</p>
+    <details class="hint">
+      <summary>Image orientation and adjustment limits</summary>
+      <p>Digital alignment needs camera flip OFF. If your OLED driver supports mirroring,
+        hold brightness + about 4 seconds while on to toggle X mirroring; hold it during
+        power-on until orientation changes to toggle Y. These are display controls,
+        separate from this page. Check orientation before aligning.</p>
+      <p>If those controls are unsupported and camera flip is needed, X/Y alignment is
+        unavailable. Software cannot add display mirroring or 90-degree rotation.
+        At an adjustment limit, zoom is not increased. Check seating and available
+        adjustment at your existing mount; the remaining error needs a physical correction.</p>
+    </details>
+    <div class="actions">
+      <button id="retry" onclick="retrySettings()">Reapply / retry save</button>
+      <button id="reload" onclick="reloadSettings()">Reload status</button>
+      <button id="mark" onclick="markAlignment()">Remember alignment</button>
+      <button id="undo" onclick="undoAlignment()">Restore remembered</button>
+    </div>
+  </section>
+  <h2>Image presets</h2>
+  <p id="preset_description" class="hint"></p>
+  <div class="main">
+    <div id="preset_div">
+      <label>Preset</label>
+      <div>
+        <select onchange="updateValue(this.id, this.value)" id="active_profile">
+        </select>
+      </div>
+    </div>
+  </div>
+  <details id="advanced">
+    <summary>Advanced image settings</summary>
+    <p class="hint">These change the selected preset, not sensor resolution. Keep your existing presets for comparison.</p>
+    <div class="main">
+    <div id="preset_en_div">
+      <label>Preset Active</label>
+      <div>
+        <label class="switch">
+          <input id="preset_en" onchange="updateValue(this.id, this.checked ? 1 : 0)" type="checkbox">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+    <div id="scene_div">
+      <label>Scene Mode</label>
+      <div>
+        <select onchange="updateValue(this.id, this.value)" id="scene_mode">
+          <option value="0">LowHighlight</option>
+          <option value="1">LinearStretch</option>
+          <option value="2">LowContrast</option>
+          <option value="3">GeneralMode</option>
+          <option value="4">HighContrast</option>
+          <option value="5">Highlight</option>
+          <option value="9">Outline</option>
+        </select>
+      </div>
+    </div>
+    <div id="edges_div">
+      <label>Edges</label>
+      <div>
+        <input style="width: 300px;" type="range" id="edge_enhancment_gear" min="0" max="2" value="0" onchange="updateValue(this.id, this.value)">
+      </div>
+    </div>
+    <div id="contrast_div">
+      <label>Contrast</label>
+      <div>
+        <input style="width: 300px;" type="range" id="contrast" min="0" max="100" value="0" onchange="updateValue(this.id, this.value)">
+      </div>
+    </div>
+    <div id="detail_div">
+      <label>Detail</label>
+      <div>
+        <input style="width: 300px;" type="range" id="detail_enhancement_gear" min="0" max="100" value="0" onchange="updateValue(this.id, this.value)">
+      </div>
+    </div>
+    <div id="breathing_div">
+      <label>Breathing</label>
+      <div>
+        <label class="switch">
+          <input id="breathing" onchange="updateValue(this.id, this.checked ? 1 : 0)" type="checkbox">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+    <button id="detail_preset" onclick="createDetail()">Try a Detail preset</button>
+    <p class="hint">Full-image General mode, moderate contrast and sharpening. Experimental, not extra resolution or a guaranteed range increase.</p>
+  </details>
+  <details id="backup_section">
+    <summary>Backup and restore</summary>
+    <p class="hint">Backs up alignment and all image presets. Excludes video timing, OLED-driver settings and camera-internal calibration.</p>
+    <button id="export" onclick="exportSettings()">Download settings</button>
+    <p><label for="import">Restore a BCOTI settings file</label></p>
+    <input id="import" type="file" accept=".json,application/json" onchange="importSettings(this.files[0]); this.value=''">
+  </details>
+  <details id="help_section"><summary>Control help — tap to expand</summary><dl id="help_list"></dl></details>
+  <script>
+    let state = null;
+    let busy = false;
+    let remembered = null, editing = false, holdTimer = null, polling = false;
+    let warning = false, revision = 0;
+    const sceneNames = {0:'Low highlight',1:'Linear stretch',2:'Low contrast',3:'Full image / Detail',4:'High contrast',5:'Highlight',9:'Outline'};
+    const el = id => document.getElementById(id);
+    const status = (message, error = false) => {
+      el('save_status').textContent = message;
+      el('save_status').className = error ? 'error' : '';
+      warning = error;
+    };
+
+    function limits() {
+      const xr = Math.ceil((state.sensor_width - state.sensor_width * 10 / state.zoom) / 2);
+      const yr = Math.ceil((state.sensor_height - state.sensor_height * 10 / state.zoom) / 2);
+      return { xmin: 128 - xr, xmax: 128 + xr, ymin: 96 - yr, ymax: 96 + yr };
+    }
+
+    function render() {
+      document.querySelectorAll('button, input, select').forEach(e => e.disabled = busy || !state);
+      if (!state) { el('reload').disabled = busy; return; }
+      const select = el('active_profile');
+      if (!select.options.length) {
+        for (let i = 0; i < state.preset_count; i++) select.add(new Option('Preset ' + i, i));
+      }
+      for (let i = 0; i < select.options.length; i++) {
+        const b = state.backup, offset = 6 + i * 10;
+        if (b) select.options[i].textContent = i + ': ' + (sceneNames[b[offset + 2]] || 'Preset') +
+          (i !== 0 && !b[offset] ? ' (not in button cycle)' : '');
+      }
+      el('preset_description').textContent = 'Selected: ' + select.options[state.active_profile].textContent;
+      el('preset_description').title = 'The selected preset is currently displayed. Disabled presets can be previewed here but are skipped by the middle button.';
+      for (const key in state) {
+        const element = el(key);
+        if (!element || key === 'zoom_x' || key === 'zoom_y') continue;
+        if (element.type === 'checkbox') element.checked = !!state[key];
+        else if ('value' in element) element.value = state[key];
+      }
+      const digital = state.flip_mode === 0;
+      const l = limits();
+      for (const axis of ['x', 'y']) {
+        const slider = el('zoom_' + axis);
+        slider.min = l[axis + 'min'];
+        slider.max = l[axis + 'max'];
+        slider.value = state['zoom_' + axis];
+        el(axis + '_value').textContent = state['zoom_' + axis];
+        slider.disabled = busy || !digital;
+        el(axis + '_minus').disabled = busy || !digital || state['zoom_' + axis] <= l[axis + 'min'];
+        el(axis + '_plus').disabled = busy || !digital || state['zoom_' + axis] >= l[axis + 'max'];
+      }
+      el('center').disabled = busy || !digital;
+      el('preset_en').disabled = busy || state.active_profile === 0;
+      el('undo').disabled = busy || !remembered || !digital || remembered.zoom !== state.zoom;
+      el('mark').disabled = busy || !digital || !state.settings_saved;
+      el('export').disabled = busy || !state.settings_saved || !state.backup;
+      el('health').replaceChildren();
+      for (const text of [state.settings_saved ? 'Storage: saved' : 'Storage: NOT saved',
+          state.camera_tx_ok ? 'Commands: sent' : 'Commands: failed',
+          state.flip_verified ? 'Flip: verified' : 'Flip: not verified',
+          'Crop: visual check required', 'Palette: ' + (state.pseudo_color === 0 ? 'White Hot' : state.pseudo_color === 9 ? 'Black Hot' : 'unknown') + ' (requested)']) {
+        const badge = document.createElement('span'); badge.textContent = text;
+        badge.title = 'Storage, transmission and camera readback are separate checks. The firmware cannot see the thermal overlay or read the OLED color mode.';
+        el('health').append(badge);
+      }
+      for (const id of ['contrast','edge_enhancment_gear','detail_enhancement_gear']) {
+        let value = el(id + '_value');
+        if (!value) { value = document.createElement('output'); value.id = id + '_value'; el(id).after(value); }
+        value.textContent = state[id];
+      }
+      el('mode_note').textContent = digital
+        ? 'Digital alignment · ' + (state.zoom / 10).toFixed(1) + '× zoom · camera flip off'
+        : 'Camera flip active · X/Y disabled. Saved digital X/Y and zoom are retained.';
+      const atLimit = state.zoom_x <= l.xmin || state.zoom_x >= l.xmax ||
+                      state.zoom_y <= l.ymin || state.zoom_y >= l.ymax;
+      el('limit_note').textContent = digital
+        ? (atLimit ? 'Software adjustment limit reached. ' : '') +
+          'Range: X ' + l.xmin + '–' + l.xmax + ', Y ' + l.ymin + '–' + l.ymax +
+          '. Zoom stays fixed; no reboot needed.'
+        : 'Use supported OLED mirroring for orientation while keeping digital alignment.';
+    }
+
+    async function request(url, body) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      try {
+        const response = await fetch(url, {
+          method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+          headers: body ? {'Content-Type': 'application/json'} : {},
+          body: body ? JSON.stringify(body) : undefined
+        });
+        const text = await response.text();
+        let data;
+        try { data = JSON.parse(text); } catch (_) { throw new Error(text || 'Invalid response'); }
+        if (!response.ok) throw new Error(data.message || text);
+        return data;
+      } finally { clearTimeout(timer); }
+    }
+
+    async function readState() {
+      state = await request('/get');
+      if (!remembered && state.settings_saved && state.flip_mode === 0)
+        remembered = {x: state.zoom_x, y: state.zoom_y, zoom: state.zoom};
+    }
+    function describeState() {
+      if (!state.nvs_writable) return status('Storage unavailable or incompatible. Settings cannot be saved; see serial log.', true);
+      if (!state.camera_tx_ok) return status('Camera settings were not fully transmitted. Use Reapply and check the image.', true);
+      const camera = state.flip_verified ? 'Camera flip readback matches.' : 'Camera readback unavailable; commands transmitted only.';
+      status((state.settings_saved ? 'Saved. ' : 'Not saved yet. ') + camera + ' Check overlay visually.', !state.settings_saved);
+    }
+
+    async function reloadSettings() {
+      if (busy) return;
+      revision++;
+      busy = true; render();
+      try { await readState(); describeState(); }
+      catch (error) { status('Cannot read device: ' + error.message + '. Reconnect to BCOTI Wi-Fi and reload status.', true); }
+      finally { busy = false; render(); }
+    }
+
+    async function send(body) {
+      if (busy || !state) return;
+      revision++;
+      busy = true; render(); status('Applying and saving...');
+      let success = false;
+      try {
+        await request('/set', body);
+        await readState();
+        describeState();
+        success = !!state.settings_saved;
+      } catch (error) {
+        // A lost response is not proof the write failed. Refresh, but keep the warning.
+        try { await readState(); } catch (_) {}
+        status('Update not confirmed: ' + error.message + '. Check values; use Reapply / retry save.', true);
+      } finally { busy = false; render(); }
+      if (!success) stopHold();
+      return success;
+    }
+
+    function updateValue(key, value) { return send({[key]: Number(value)}); }
+    function sendAlignment(x, y) {
+      return send({zoom: {zoom: state.zoom, x: Number(x), y: Number(y)}});
+    }
+    function setAxis(axis, value) {
+      return sendAlignment(axis === 'x' ? value : state.zoom_x, axis === 'y' ? value : state.zoom_y);
+    }
+    function nudge(axis, delta) {
+      const l = limits(), value = state['zoom_' + axis] + delta;
+      if (value < l[axis + 'min'] || value > l[axis + 'max']) return;
+      return setAxis(axis, value);
+    }
+    function changeMode() { return updateValue('flip_mode', el('flip_mode').value); }
+    function retrySettings() { return send({reapply: 1}); }
+    function markAlignment() {
+      remembered = {x: state.zoom_x, y: state.zoom_y, zoom: state.zoom};
+      render(); status('Remembered X=' + remembered.x + ', Y=' + remembered.y + ' for this page session.');
+    }
+    function undoAlignment() {
+      if (remembered && state.flip_mode === 0 && remembered.zoom === state.zoom)
+        return sendAlignment(remembered.x, remembered.y);
+    }
+    async function createDetail() {
+      if (!state.backup) return;
+      const slot = Array.from({length: state.preset_count}, (_, i) => i).reverse()
+        .find(i => i >= 2 && !state.backup[6 + i * 10]);
+      if (slot === undefined) return status('No disabled spare preset. Existing presets were not changed.', true);
+      if (confirm('Replace disabled preset ' + slot + ' with an experimental Detail preset and preview it? Download a backup first to preserve its old values. Alignment stays unchanged; button cycling stays disabled for this slot.'))
+        await send({detail_preset: slot});
+    }
+    async function exportSettings() {
+      await reloadSettings();
+      if (warning || !state?.settings_saved || !state.backup) return;
+      const data = {format:'bcoti-personal-settings', version:1, sensor:[256,192], settings:state.backup};
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}));
+      const link = document.createElement('a'); link.href = url; link.download = 'bcoti-settings.json';
+      link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    async function importSettings(file) {
+      if (!file || busy) return;
+      try {
+        if (file.size > 4096) throw new Error('File too large');
+        const b = JSON.parse(await file.text());
+        if (b.format !== 'bcoti-personal-settings' || b.version !== 1 ||
+            JSON.stringify(b.sensor) !== '[256,192]' || !Array.isArray(b.settings) ||
+            b.settings.length !== 56 || b.settings[0] !== 1 ||
+            !b.settings.every(v => Number.isInteger(v) && v >= 0 && v <= 256))
+          throw new Error('Not a compatible BCOTI backup');
+        if (confirm('Replace alignment and all image presets with this backup? X=' + b.settings[4] +
+            ', Y=' + b.settings[5] + ', zoom=' + b.settings[3]/10 + '. Video timing is not changed.'))
+          await send({restore:b.settings});
+      } catch (error) { status('Import rejected: ' + error.message, true); }
+    }
+    function stopHold() { clearInterval(holdTimer); holdTimer = null; }
+    for (const axis of ['x','y']) for (const [suffix,delta] of [['minus',-1],['plus',1]]) {
+      const button = el(axis + '_' + suffix);
+      button.onclick = event => { if (event.detail === 0) nudge(axis,delta); };
+      button.addEventListener('pointerdown', event => {
+        if (event.button !== 0 || button.disabled) return;
+        event.preventDefault(); stopHold(); nudge(axis,delta);
+        holdTimer = setInterval(() => {
+          if (!busy && !button.disabled) nudge(axis,delta);
+        }, 600);
+      });
+    }
+    for (const event of ['pointerup','pointercancel']) window.addEventListener(event, () => { editing = false; stopHold(); });
+    window.addEventListener('blur', stopHold);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stopHold(); });
+    document.querySelectorAll('input,select').forEach(control => {
+      control.addEventListener('pointerdown', () => { editing = true; });
+      control.addEventListener('keydown', () => { editing = true; });
+      control.addEventListener('keyup', () => { editing = false; });
+      control.addEventListener('blur', () => { editing = false; });
+    });
+    setInterval(async () => {
+      if (busy || polling || editing || holdTimer || document.hidden ||
+          ['INPUT','SELECT'].includes(document.activeElement?.tagName)) return;
+      polling = true;
+      const startedRevision = revision;
+      try {
+        const fresh = await request('/get');
+        if (startedRevision === revision && !busy && !editing && !holdTimer) { state = fresh; render(); if (!warning) describeState(); }
+      } catch (_) { if (startedRevision === revision) status('Device disconnected. Reconnect to BCOTI Wi-Fi and reload status.', true); }
+      finally { polling = false; }
+    }, 3000);
+    const help = {
+      flip_mode:'Digital alignment retains the existing zoom and enables X/Y. Camera flip disables crop alignment. Prefer independent OLED mirroring if supported.',
+      x_minus:'Decrease crop X one step. Hold for repeated steps; each successful step is saved. Apparent direction depends on your mount and mirroring.',
+      x_plus:'Increase crop X one step. Hold for repeated steps; release to stop. At the limit, no extra zoom is added.',
+      y_minus:'Decrease crop Y one step. Hold to repeat. At your 9 o’clock mount this may not look like downward movement.',
+      y_plus:'Increase crop Y one step. Hold to repeat. Determine direction by watching a warm target.',
+      zoom_x:'Choose crop X within the existing zoom margin. Applies and saves on release, not every slider movement.',
+      zoom_y:'Choose crop Y within the existing zoom margin. Applies and saves on release. This does not rotate or enlarge the image.',
+      center:'Apply and save the sensor center X=128, Y=96. Zoom and image presets are preserved.',
+      retry:'Resend the current settings and retry persistence. This is not a factory reset; visually confirm the overlay afterward.',
+      reload:'Read fresh device settings and status without changing the camera. Automatic refresh runs every three seconds when controls are idle.',
+      mark:'Remember the current saved X/Y in this open page. Initially this is the alignment loaded on opening. Reloading the page loses this checkpoint; use Download settings for a durable backup.',
+      undo:'Apply and save the remembered alignment. Available only in digital mode at the same zoom. Does not restore image presets.',
+      active_profile:'Select and preview a stored image preset. The physical middle button cycles only enabled presets; preset 0 is always available.',
+      preset_en:'Include this preset in the physical middle-button cycle. Unchecking does not delete it. Preset 0 cannot be disabled.',
+      scene_mode:'Choose how thermal intensities are rendered. Highlight and Outline suit overlays; General shows a fuller image that may obscure night vision. No mode adds sensor pixels.',
+      edge_enhancment_gear:'Outline edge thickness, 0–2. Higher values make edges stronger or thicker, not higher resolution.',
+      contrast:'Contrast, 0–100. High contrast can emphasize targets but conceal subtle temperature differences. Compare on the same target.',
+      detail_enhancement_gear:'Sharpening, 0–100. Strong sharpening may emphasize noise or halos; it cannot recover uncaptured detail.',
+      breathing:'Enable the existing periodic brightness/breathing behavior for this preset. This is not a frame-rate or latency control.',
+      detail_preset:'After confirmation, replace one disabled spare preset with General mode, contrast 50 and detail 55, White Hot, shutter correction and burn protection on. Preview only; not automatically added to the button cycle.',
+      export:'Download a validated snapshot of saved alignment and all image presets. Keep this file on your phone. OLED settings and video timing are excluded.',
+      import:'Choose a previously exported JSON backup. Confirm before replacing alignment and every image preset. The firmware validates all values before applying and saving.',
+      advanced:'Expand per-preset image adjustments. These are optional; normal alignment needs no changes here.',
+      backup_section:'Expand phone backup and restore controls. A settings backup is not a full firmware rollback image.',
+      help_section:'Expand explanations for every control, including disabled ones. Hover tooltips and focus help provide the same information.'
+    };
+    for (const [id, explanation] of Object.entries(help)) {
+      const target = el(id).matches('details') ? el(id).querySelector('summary') : el(id);
+      target.title = explanation; target.setAttribute('aria-describedby','control_help');
+      target.addEventListener('focus', () => { el('control_help').textContent = explanation; });
+      target.addEventListener('pointerdown', () => { el('control_help').textContent = explanation; });
+      const term = document.createElement('dt'), definition = document.createElement('dd');
+      const label = document.querySelector('label[for="' + id + '"]') || target.closest('.main > div')?.querySelector('label');
+      term.textContent = target.tagName === 'BUTTON' || target.tagName === 'SUMMARY' ? target.textContent : label?.textContent || target.getAttribute('aria-label') || id;
+      definition.textContent = explanation; el('help_list').append(term, definition);
+      if (!target.getAttribute('aria-label') && !target.labels?.length) target.setAttribute('aria-label',term.textContent);
+    }
+    document.querySelector('.hint summary').title = 'Explains independent OLED mirroring and the limits of digital translation. Expand to read.';
+    render();
+    reloadSettings();
+  </script>
+</body>
+</html>

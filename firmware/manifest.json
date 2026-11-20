@@ -1,0 +1,27 @@
+{
+  "packaged_utc": "2026-11-20T20:07:53.888438+00:00",
+  "app_version": "bcoti-personal-3",
+  "idf_version": "v5.3.1",
+  "target": "esp32c3",
+  "upstream_base": "3d0a60b33ea24dbb9db645e426a9cef9cd25c97e",
+  "application_offset": "0x10000",
+  "partition_size": "0x100000",
+  "file": "BCOTI-personal-v3.bin",
+  "size_bytes": 948688,
+  "sha256": "aae4e1fa1c202e58bbd4cfd42101502407c5f9f8097dddfe8742184f45f65bcc",
+  "this_rebuilt_binary_hardware_tested": false,
+  "source_hash_normalization": "UTF-8 text bytes with CRLF converted to LF",
+  "source_sha256": {
+    "Esp32_Files/ESP_IDF_Project/CMakeLists.txt": "8c6a7c0215f2d92bdee7afa628d34e94b12b6e174107c4cd2169dc8926c38b80",
+    "Esp32_Files/ESP_IDF_Project/components/Mini2/CMakeLists.txt": "db59f6ebce4f24e15c99b5d3bdca441489b99cb3c2418174a3ae6b42793c898d",
+    "Esp32_Files/ESP_IDF_Project/components/Mini2/Mini2.c": "1dd6e82d3bff4d23d949709978d2d68c659dcc941dc0b4b83dadf3d657540c6e",
+    "Esp32_Files/ESP_IDF_Project/components/Mini2/Mini2.h": "025eb66b098766612df039b03c1b0c6237f911c89a245a6b67369d9806bc49e6",
+    "Esp32_Files/ESP_IDF_Project/dependencies.lock": "378678301496bbef605d0c9e5fdcee6bad4200479d27f16cb0473b683dbc0c2f",
+    "Esp32_Files/ESP_IDF_Project/main/CMakeLists.txt": "90f16442ff66a51ce03fa9a74e4618caec64f2b0dd6d0cc575d9385bbb4b920c",
+    "Esp32_Files/ESP_IDF_Project/main/debug.html": "a7bddfe5de646ace46efaecb10dd3178db373dd5e3a799eb1b7bbbaa3df5e766",
+    "Esp32_Files/ESP_IDF_Project/main/idf_component.yml": "46f4e9277fd83169d813e48fe3d709792da63da1c25e8cd3e3da175324960b08",
+    "Esp32_Files/ESP_IDF_Project/main/index.html": "deed3b152b5ca7ae6061d76f2df1ee026ff609fbd95c241b6df993f4513b4361",
+    "Esp32_Files/ESP_IDF_Project/main/main.c": "23a034d6ecb0135e6ebfa1e1883657691df7b6954dec1093838cd1cdd2b8aec7",
+    "Esp32_Files/ESP_IDF_Project/sdkconfig": "6daf8e27ad7e8eb56ac2c7f3fb2091eac92a5b00ba7680e3cbc43ee62e1f5417"
+  }
+}

@@ -1,0 +1,23 @@
+# Device data is private: never publish flash/NVS dumps or phone settings.
+backups/
+**/backups/
+*nvs*.bin
+*full-flash*.bin
+*factory-app*.bin
+bcoti-settings*.json
+**/build/
+**/managed_components/
+**/sdkconfig.old
+**/__pycache__/
+tests/artifacts/
+.venv/
+.vscode/
+.idea/
+*.log
+*.elf
+*.map
+*.obj
+*.pdb
+*.exp
+*.lib
+dist/
